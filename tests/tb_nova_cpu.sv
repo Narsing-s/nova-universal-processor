@@ -53,7 +53,27 @@ module tb_nova_cpu;
         if (r0 !== 8'd7 || r1 !== 8'd9)
             $fatal(1, "FAIL: CALL/RET expected r0=7,r1=9; got r0=%0d r1=%0d", r0, r1);
         $display("PASS: CALL and RET subroutine");
-        $display("Nova CPU v0.3 all tests passed");
+
+        // Third program: verify AND, OR, XOR and NOT encodings.
+        reset = 1;
+        @(negedge clk);
+        dut.rom[0] = 16'h10F0; // LI r0, 240
+        dut.rom[1] = 16'h140F; // LI r1, 15
+        dut.rom[2] = 16'hD840; // AND r2, r0, r1 => 0
+        dut.rom[3] = 16'hE840; // OR r2, r0, r1 => 255
+        dut.rom[4] = 16'h0610; // XOR r2, r0, r1 => 255
+        dut.rom[5] = 16'h0A00; // NOT r2, r0 => 15
+        dut.rom[6] = 16'hF000;
+        for (integer m = 7; m < 16; m = m + 1) dut.rom[m] = 16'hF000;
+        repeat (2) @(negedge clk);
+        reset = 0;
+        wait (halted);
+        #1;
+        if (r0 !== 8'd240 || r1 !== 8'd15 || r2 !== 8'd15)
+            $fatal(1, "FAIL: bitwise operations expected r0=240,r1=15,r2=15; got %0d,%0d,%0d", r0, r1, r2);
+        $display("PASS: AND, OR, XOR and NOT");
+        $display("Nova CPU v0.4 all tests passed");
+
         $finish;
     end
 
