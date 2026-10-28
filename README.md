@@ -2,7 +2,7 @@
 
 Project Nova is an experimental processor architecture project exploring processor design through simulation. The current RTL is an educational 8-bit prototype, not a production-ready mobile or desktop CPU.
 
-## Current prototype: Nova CPU v0.3
+## Current prototype: Nova CPU v0.4
 
 - Four 8-bit general-purpose registers: `r0`–`r3`
 - 4-bit program counter and 16-word instruction ROM
@@ -10,8 +10,10 @@ Project Nova is an experimental processor architecture project exploring process
 - 16-bit fixed-width instructions
 - Immediate load, ADD, SUB, LOAD, STORE, CMP, BEQ, JMP, NOP and HALT
 - Carry, zero and signed-overflow flags
-- CALL and RET using a 16-entry return-address stack
-- PUSH and POP for byte data
+- CALL and RET using a dedicated 16-entry return-address stack
+- PUSH and POP for byte data using a separate data-stack pointer
+- Bitwise AND, OR, XOR and NOT operations
+- Independent data and return stacks
 - Stack overflow/underflow and illegal opcode stop protection
 - Automated Icarus Verilog simulation on GitHub Actions
 
@@ -19,7 +21,9 @@ Project Nova is an experimental processor architecture project exploring process
 
 | Opcode | Mnemonic | Behavior |
 |---|---|---|
-| `0` | NOP | Advance to next instruction |
+| `0` | NOP/XOR/NOT | Opcode 0 subfunction selects NOP, XOR or NOT |
+| `D` | AND | Bitwise AND of two registers |
+| `E` | OR | Bitwise OR of two registers |
 | `1` | LI | Load 8-bit immediate into register `Rd` |
 | `2` | ADD | `Rd = Rs + Rt`; updates carry, zero and overflow |
 | `3` | SUB | `Rd = Rs - Rt`; carry means no borrow |
@@ -34,7 +38,7 @@ Project Nova is an experimental processor architecture project exploring process
 | `C` | POP | Pop byte into register |
 | `F` | HALT | Stop execution |
 
-Flags are updated by arithmetic/comparison instructions; zero is also updated by LI and LOAD. PUSH/POP and CALL/RET currently share the same small stack pointer/storage resources, so they should not be mixed in the same live call frame in this prototype. The design is intended for instruction-set learning, not a full ABI or operating-system environment.
+Flags are updated by arithmetic/comparison instructions; zero is also updated by LI and LOAD. The data stack and call-return stack have independent pointers. Both are still small fixed-size structures; the design is intended for instruction-set learning, not a full ABI or operating-system environment.
 
 ## Run tests locally
 
