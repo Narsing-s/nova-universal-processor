@@ -19,7 +19,8 @@ module nova_cpu (
     logic [7:0] regs [0:3];
     logic [1:0] rd, rs, rt;
     logic [3:0] address;
-    logic [3:0] sp;
+    logic [3:0] data_sp;
+    logic [3:0] call_sp;
     logic [3:0] call_stack [0:15];
     logic [7:0] value_a, value_b;
     logic [8:0] add_result;
@@ -67,7 +68,8 @@ module nova_cpu (
     always_ff @(posedge clk) begin
         if (reset) begin
             pc <= 4'd0;
-            sp <= 4'd0;
+            data_sp <= 4'd0;
+            call_sp <= 4'd0;
             halted <= 1'b0;
             carry_flag <= 1'b0;
             zero_flag <= 1'b0;
@@ -80,7 +82,22 @@ module nova_cpu (
             end
         end else if (!halted) begin
             case (instruction[15:12])
-                4'h0: pc <= pc + 1'b1; // NOP
+                4'h0: begin // NOP/XOR/NOT extension
+                    case (instruction[11:10])
+                        2'b00: pc <= pc + 1'b1;
+                        2'b01: begin
+                            regs[instruction[9:8]] <= regs[instruction[7:6]] ^ regs[instruction[5:4]];
+                            zero_flag <= ((regs[instruction[7:6]] ^ regs[instruction[5:4]]) == 8'd0);
+                            pc <= pc + 1'b1;
+                        end
+                        2'b10: begin
+                            regs[instruction[9:8]] <= ~regs[instruction[7:6]];
+                            zero_flag <= (~regs[instruction[7:6]] == 8'd0);
+                            pc <= pc + 1'b1;
+                        end
+                        default: halted <= 1'b1;
+                    endcase
+                end
                 4'h1: begin // LI Rd, imm8
                     regs[rd] <= instruction[7:0];
                     zero_flag <= (instruction[7:0] == 8'd0);
@@ -121,29 +138,41 @@ module nova_cpu (
                 end
                 4'h8: pc <= instruction[3:0]; // JMP
                 4'h9: begin // CALL absolute 4-bit address
-                    call_stack[sp] <= pc + 1'b1;
-                    sp <= sp + 1'b1;
-                    pc <= instruction[3:0];
+                    if (call_sp != 4'hF) begin
+                        call_stack[call_sp] <= pc + 1'b1;
+                        call_sp <= call_sp + 1'b1;
+                        pc <= instruction[3:0];
+                    end else halted <= 1'b1;
                 end
                 4'hA: begin // RET
-                    if (sp != 0) begin
-                        sp <= sp - 1'b1;
-                        pc <= call_stack[sp - 1'b1];
+                    if (call_sp != 0) begin
+                        call_sp <= call_sp - 1'b1;
+                        pc <= call_stack[call_sp - 1'b1];
                     end else begin
                         halted <= 1'b1; // empty return stack is an error-stop
                     end
                 end
-                4'hB: begin // PUSH Rd to data stack (shares stack pointer with CALL)
-                    if (sp != 4'hF) begin
-                        data_mem[sp] <= regs[rd];
-                        sp <= sp + 1'b1;
+                4'hB: begin // PUSH Rd to independent data stack
+                    if (data_sp != 4'hF) begin
+                        data_mem[data_sp] <= regs[rd];
+                        data_sp <= data_sp + 1'b1;
                         pc <= pc + 1'b1;
                     end else halted <= 1'b1; // stack overflow protection
                 end
+                4'hD: begin // AND Rd, Rs, Rt
+                    regs[rd] <= regs[rs] & regs[rt];
+                    zero_flag <= ((regs[rs] & regs[rt]) == 8'd0);
+                    pc <= pc + 1'b1;
+                end
+                4'hE: begin // OR Rd, Rs, Rt
+                    regs[rd] <= regs[rs] | regs[rt];
+                    zero_flag <= ((regs[rs] | regs[rt]) == 8'd0);
+                    pc <= pc + 1'b1;
+                end
                 4'hC: begin // POP into Rd
-                    if (sp != 0) begin
-                        regs[rd] <= data_mem[sp - 1'b1];
-                        sp <= sp - 1'b1;
+                    if (data_sp != 0) begin
+                        regs[rd] <= data_mem[data_sp - 1'b1];
+                        data_sp <= data_sp - 1'b1;
                         pc <= pc + 1'b1;
                     end else halted <= 1'b1; // stack underflow protection
                 end
