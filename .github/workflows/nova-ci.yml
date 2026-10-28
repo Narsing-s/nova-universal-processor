@@ -1,0 +1,31 @@
+name: Nova CPU Simulation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+
+      - name: Compile CPU and testbench
+        run: |
+          iverilog -g2012 -Wall -s tb_nova_cpu             -o nova_test             rtl/nova_cpu.sv             tests/tb_nova_cpu.sv
+
+      - name: Run CPU simulation
+        run: vvp nova_test
