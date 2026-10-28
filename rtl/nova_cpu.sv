@@ -23,6 +23,7 @@ module nova_cpu (
     logic [3:0] call_stack [0:15];
     logic [7:0] value_a, value_b;
     logic [8:0] add_result;
+    logic [7:0] sub_result;
     logic signed [8:0] signed_a, signed_b, signed_result;
 
     assign instruction = rom[pc];
@@ -33,6 +34,7 @@ module nova_cpu (
     assign value_a = regs[rs];
     assign value_b = regs[rt];
     assign add_result = {1'b0, value_a} + {1'b0, value_b};
+    assign sub_result = value_a - value_b;
     assign signed_a = {value_a[7], value_a};
     assign signed_b = {value_b[7], value_b};
     assign signed_result = signed_a + signed_b;
@@ -92,10 +94,10 @@ module nova_cpu (
                     pc <= pc + 1'b1;
                 end
                 4'h3: begin // SUB Rd, Rs, Rt
-                    regs[rd] <= value_a - value_b;
+                    regs[rd] <= sub_result;
                     carry_flag <= (value_a >= value_b); // 1 means no borrow
-                    zero_flag <= ((value_a - value_b) == 8'd0);
-                    overflow_flag <= ((value_a[7] != value_b[7]) && ((value_a - value_b)[7] != value_a[7]));
+                    zero_flag <= (sub_result == 8'd0);
+                    overflow_flag <= ((value_a[7] != value_b[7]) && (sub_result[7] != value_a[7]));
                     pc <= pc + 1'b1;
                 end
                 4'h4: begin // LOAD Rd, [addr]
