@@ -1,0 +1,24 @@
+name: Nova32 instruction lockstep regression
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  instruction-lockstep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+      - name: Compile Nova32 instruction lockstep regression
+        run: iverilog -g2012 -Wall -s tb_nova32_lockstep -o nova32_lockstep_test rtl32/nova32_cpu.sv tests/tb_nova32_lockstep.sv
+      - name: Run Nova32 instruction lockstep regression
+        run: vvp nova32_lockstep_test
