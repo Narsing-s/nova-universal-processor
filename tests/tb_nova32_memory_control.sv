@@ -103,7 +103,7 @@ module tb_nova32_memory_control;
             $fatal(1, "Signed/unsigned load mismatch");
         if (dut.regs[11] !== 2 || dut.regs[12] !== 68 || dut.regs[13] !== 7 ||
             dut.regs[14] !== 88 || dut.regs[15] !== 80 || dut.regs[16] !== 42)
-            $fatal(1, "Branch/JAL/JALR control-flow or link mismatch");
+            $fatal(1, "Branch/JAL/JALR mismatch x11=%h x12=%h x13=%h x14=%h x15=%h x16=%h", dut.regs[11], dut.regs[12], dut.regs[13], dut.regs[14], dut.regs[15], dut.regs[16]);
         $display("PASS: memory loads/stores, x0/write-lane assertions, BEQ, JAL, JALR");
         $finish;
     end
