@@ -35,4 +35,4 @@ Nova32 uses 32-bit fixed-width instructions with RV32I-inspired encodings and a 
 
 ## Status
 
-This subset is intentionally incomplete and is not yet a formally validated or fully compliant RISC-V implementation. Add differential tests and lint before expanding the ISA or optimizing the microarchitecture.
+This subset is intentionally incomplete and is not a formally validated or fully compliant RISC-V implementation. CI runs directed self-checking simulations for arithmetic, memory, branches, JAL/JALR link and target behavior, x0, illegal instructions, and rejected misaligned accesses. CI also runs Verilator lint on both RTL cores. Differential testing against an independent ISA model and formal properties remain future validation work before expanding the ISA or optimizing the microarchitecture.
