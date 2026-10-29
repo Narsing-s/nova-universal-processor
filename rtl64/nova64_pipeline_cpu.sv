@@ -29,7 +29,7 @@ module nova64_pipeline_cpu (
     logic exmem_memwrite, exmem_memread, exmem_regwrite, exmem_memtoreg, exmem_halt, memwb_halt;
     logic memwb_regwrite;
     logic [63:0] ex_result, ex_operand_a, ex_operand_b, ex_store_data;
-    logic [63:0] ex_effective_addr, ex_load_value, ex_next_pc;
+    logic [63:0] ex_effective_addr, ex_load_value, ex_next_pc, shifted_load_value;
     logic ex_redirect, ex_illegal;
     logic [1:0] forward_a, forward_b;
     logic stall_if_id, bubble_id_ex, flush_if_id, flush_id_ex;
@@ -153,15 +153,16 @@ module nova64_pipeline_cpu (
                 default: ex_store_strobe=0;
             endcase
         end
-        ex_load_value=data_rdata >> (8*exmem_alu[2:0]);
+        shifted_load_value=data_rdata >> (8*exmem_alu[2:0]);
+        ex_load_value=shifted_load_value;
         case (exmem_funct3)
-            3'b000: ex_load_value={{56{ex_load_value[7]}},ex_load_value[7:0]};
-            3'b001: ex_load_value={{48{ex_load_value[15]}},ex_load_value[15:0]};
-            3'b010: ex_load_value={{32{ex_load_value[31]}},ex_load_value[31:0]};
-            3'b100: ex_load_value={56'd0,ex_load_value[7:0]};
-            3'b101: ex_load_value={48'd0,ex_load_value[15:0]};
-            3'b110: ex_load_value={32'd0,ex_load_value[31:0]};
-            default: ex_load_value=ex_load_value;
+            3'b000: ex_load_value={{56{shifted_load_value[7]}},shifted_load_value[7:0]};
+            3'b001: ex_load_value={{48{shifted_load_value[15]}},shifted_load_value[15:0]};
+            3'b010: ex_load_value={{32{shifted_load_value[31]}},shifted_load_value[31:0]};
+            3'b100: ex_load_value={56'd0,shifted_load_value[7:0]};
+            3'b101: ex_load_value={48'd0,shifted_load_value[15:0]};
+            3'b110: ex_load_value={32'd0,shifted_load_value[31:0]};
+            default: ex_load_value=shifted_load_value;
         endcase
     end
 
