@@ -1,0 +1,17 @@
+name: Nova64 Pipeline Control CI
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+permissions:
+  contents: read
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y iverilog verilator
+      - run: iverilog -g2012 -Wall -s tb_nova64_pipeline_control -o pipeline_control_test rtl64/nova64_pipeline_control.sv tests/tb_nova64_pipeline_control.sv
+      - run: vvp pipeline_control_test
+      - run: verilator --lint-only --timing -Wall -Wno-fatal --top-module nova64_pipeline_control rtl64/nova64_pipeline_control.sv
