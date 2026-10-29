@@ -1,0 +1,24 @@
+name: Nova32 control-flow regression
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  control-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+      - name: Compile Nova32 control-flow regression
+        run: iverilog -g2012 -Wall -s tb_nova32_control_flow -o nova32_control_flow_test rtl32/nova32_cpu.sv tests/tb_nova32_control_flow.sv
+      - name: Run Nova32 control-flow regression
+        run: vvp nova32_control_flow_test
