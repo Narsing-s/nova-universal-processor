@@ -16,7 +16,7 @@ class Nova32ReferenceModelTests(unittest.TestCase):
             (0, 1): 0xFFFF_F880, (0, 2): 1, (0, 3): 0,
             (0, 4): 0xFFFF_FFF6, (0, 5): 0x01FF_FFFF,
             (0x20, 5): 0xFFFF_FFFF, (0, 6): 0xFFFF_FFF7,
-            (0, 7): 7,
+            (0, 7): 1,
         }
         functs = [(0,0),(0x20,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0x20,5),(0,6),(0,7)]
         for key in functs:
