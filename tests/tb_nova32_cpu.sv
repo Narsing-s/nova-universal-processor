@@ -59,12 +59,14 @@ module tb_nova32_cpu;
         end
     endtask
     task automatic await_halt;
+        integer cycles;
         begin
-            fork
-                begin wait (halted); end
-                begin repeat (60) @(negedge clk); $fatal(1, "Nova32 test timeout"); end
-            join_any
-            disable fork;
+            cycles = 0;
+            while (!halted && cycles < 60) begin
+                @(negedge clk);
+                cycles = cycles + 1;
+            end
+            if (!halted) $fatal(1, "Nova32 test timeout");
             #1;
         end
     endtask
