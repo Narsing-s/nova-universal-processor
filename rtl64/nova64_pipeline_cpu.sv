@@ -88,7 +88,7 @@ module nova64_pipeline_cpu (
 
     nova64_pipeline_control hazard_control(
         .id_rs1(id_rs1),.id_rs2(id_rs2),.id_uses_rs1(id_uses_rs1 && ifid_valid),.id_uses_rs2(id_uses_rs2 && ifid_valid),
-        .ex_rs1(idex_rs1),.ex_rs2(idex_rs2),.ex_rd(idex_rd),.ex_regwrite(idex_regwrite),.ex_memread(idex_memread),
+        .ex_rs1(idex_rs1),.ex_rs2(idex_rs2),.ex_rd(idex_rd),.ex_regwrite(idex_regwrite && idex_valid),.ex_memread(idex_memread && idex_valid),
         .mem_rd(exmem_rd),.mem_regwrite(exmem_regwrite),.wb_rd(memwb_rd),.wb_regwrite(memwb_regwrite),
         .redirect_valid(ex_redirect),.stall_if_id(stall_if_id),.bubble_id_ex(bubble_id_ex),
         .flush_if_id(flush_if_id),.flush_id_ex(flush_id_ex),.forward_a(forward_a),.forward_b(forward_b)
