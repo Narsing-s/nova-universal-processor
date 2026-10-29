@@ -10,17 +10,20 @@ module nova_cpu (
     output logic       overflow_flag,
     output logic       halted
 );
-    // Nova v0.3 educational 8-bit CPU.
+    // Nova v0.4 educational 8-bit CPU. Kept as a stable prototype while
+    // the separate 32-bit architecture is designed and verified.
     // 16-bit instruction: opcode [15:12], operands depend on opcode.
     logic [3:0] pc;
     logic [15:0] rom [0:15];
     logic [7:0] data_mem [0:15];
+    logic [7:0] data_stack [0:15];
     logic [15:0] instruction;
     logic [7:0] regs [0:3];
     logic [1:0] rd, rs, rt;
     logic [3:0] address;
-    logic [3:0] data_sp;
-    logic [3:0] call_sp;
+    // 5-bit pointers represent every occupancy from 0 through 16.
+    logic [4:0] data_sp;
+    logic [4:0] call_sp;
     logic [3:0] call_stack [0:15];
     logic [7:0] value_a, value_b;
     logic [8:0] add_result;
@@ -68,8 +71,8 @@ module nova_cpu (
     always_ff @(posedge clk) begin
         if (reset) begin
             pc <= 4'd0;
-            data_sp <= 4'd0;
-            call_sp <= 4'd0;
+            data_sp <= 5'd0;
+            call_sp <= 5'd0;
             halted <= 1'b0;
             carry_flag <= 1'b0;
             zero_flag <= 1'b0;
@@ -78,6 +81,7 @@ module nova_cpu (
                 regs[i] <= 8'd0;
             for (integer j = 0; j < 16; j = j + 1) begin
                 data_mem[j] <= 8'd0;
+                data_stack[j] <= 8'd0;
                 call_stack[j] <= 4'd0;
             end
         end else if (!halted) begin
@@ -138,8 +142,8 @@ module nova_cpu (
                 end
                 4'h8: pc <= instruction[3:0]; // JMP
                 4'h9: begin // CALL absolute 4-bit address
-                    if (call_sp != 4'hF) begin
-                        call_stack[call_sp] <= pc + 1'b1;
+                    if (call_sp < 5'd16) begin
+                        call_stack[call_sp[3:0]] <= pc + 1'b1;
                         call_sp <= call_sp + 1'b1;
                         pc <= instruction[3:0];
                     end else halted <= 1'b1;
@@ -147,17 +151,24 @@ module nova_cpu (
                 4'hA: begin // RET
                     if (call_sp != 0) begin
                         call_sp <= call_sp - 1'b1;
-                        pc <= call_stack[call_sp - 1'b1];
+                        pc <= call_stack[(call_sp - 1'b1) & 5'h0F];
                     end else begin
                         halted <= 1'b1; // empty return stack is an error-stop
                     end
                 end
-                4'hB: begin // PUSH Rd to independent data stack
-                    if (data_sp != 4'hF) begin
-                        data_mem[data_sp] <= regs[rd];
+                4'hB: begin // PUSH Rd to independent 16-byte data stack
+                    if (data_sp < 5'd16) begin
+                        data_stack[data_sp[3:0]] <= regs[rd];
                         data_sp <= data_sp + 1'b1;
                         pc <= pc + 1'b1;
                     end else halted <= 1'b1; // stack overflow protection
+                end
+                4'hC: begin // POP into Rd
+                    if (data_sp != 0) begin
+                        regs[rd] <= data_stack[(data_sp - 1'b1) & 5'h0F];
+                        data_sp <= data_sp - 1'b1;
+                        pc <= pc + 1'b1;
+                    end else halted <= 1'b1; // stack underflow protection
                 end
                 4'hD: begin // AND Rd, Rs, Rt
                     regs[rd] <= regs[rs] & regs[rt];
@@ -168,13 +179,6 @@ module nova_cpu (
                     regs[rd] <= regs[rs] | regs[rt];
                     zero_flag <= ((regs[rs] | regs[rt]) == 8'd0);
                     pc <= pc + 1'b1;
-                end
-                4'hC: begin // POP into Rd
-                    if (data_sp != 0) begin
-                        regs[rd] <= data_mem[data_sp - 1'b1];
-                        data_sp <= data_sp - 1'b1;
-                        pc <= pc + 1'b1;
-                    end else halted <= 1'b1; // stack underflow protection
                 end
                 4'hF: halted <= 1'b1; // HALT
                 default: halted <= 1'b1; // illegal opcode stops safely
