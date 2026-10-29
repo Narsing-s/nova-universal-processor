@@ -30,10 +30,10 @@ Keep rtl/nova_cpu.sv as the educational Nova 8-bit v0.x reference. Do not silent
 2. Decide whether Nova is a custom ISA or a compatible subset. Prefer a documented RISC-V RV32I subset if compatibility and tooling are priorities.
 3. Add assembly encoding/decoding helpers and hand-checked golden vectors.
 
-### P2 — Build a separate 32-bit reference core
-1. Add rtl32/nova32_cpu.sv with its own interface and tests.
-2. Start with register/immediate operations, loads/stores, branches/jumps, and halt/trap behavior.
-3. Test wraparound, signed overflow, alignment, and PC boundaries with explicit-width arithmetic.
+### P2 — Build and verify a separate 32-bit reference core
+1. Implemented initial rtl32/nova32_cpu.sv as a separate single-cycle, RV32I-inspired reference core.
+2. Implemented a tested subset: integer/immediate ALU, loads/stores, branches, JAL/JALR, LUI/AUIPC, and custom HALT.
+3. Added a dedicated testbench and CI job; broaden edge-case, lint and differential testing before claiming ISA compliance.
 4. Keep the 8-bit module and demo behavior intact.
 
 ### P3 — Validate before optimizing
