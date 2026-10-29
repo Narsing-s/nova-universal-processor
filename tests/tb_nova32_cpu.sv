@@ -1,4 +1,4 @@
-\`timescale 1ns/1ps
+`timescale 1ns/1ps
 module tb_nova32_cpu;
     logic clk = 0, reset = 1;
     logic [31:0] instr_addr, instr_rdata, data_addr, data_wdata, data_rdata;
