@@ -1,0 +1,34 @@
+name: RTL simulation
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog verilator
+      - name: Compile 8-bit regression
+        run: iverilog -g2012 -Wall -s tb_nova_cpu -o nova8_test rtl/nova_cpu.sv tests/tb_nova_cpu.sv
+      - name: Run 8-bit regression
+        run: vvp nova8_test
+      - name: Compile 32-bit regression
+        run: iverilog -g2012 -Wall -s tb_nova32_cpu -o nova32_test rtl32/nova32_cpu.sv tests/tb_nova32_cpu.sv
+      - name: Run 32-bit regression
+        run: vvp nova32_test
+
+      - name: Lint 8-bit RTL with Verilator
+        run: verilator --lint-only --timing -Wall -Wno-fatal --top-module nova_cpu rtl/nova_cpu.sv
+      - name: Lint 32-bit RTL with Verilator
+        run: verilator --lint-only --timing -Wall -Wno-fatal --top-module nova32_cpu rtl32/nova32_cpu.sv
