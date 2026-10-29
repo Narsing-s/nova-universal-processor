@@ -151,7 +151,7 @@ module nova_cpu (
                 4'hA: begin // RET
                     if (call_sp != 0) begin
                         call_sp <= call_sp - 1'b1;
-                        pc <= call_stack[(call_sp - 1'b1) & 5'h0F];
+                        pc <= call_stack[call_sp[3:0] - 4'd1];
                     end else begin
                         halted <= 1'b1; // empty return stack is an error-stop
                     end
@@ -165,7 +165,7 @@ module nova_cpu (
                 end
                 4'hC: begin // POP into Rd
                     if (data_sp != 0) begin
-                        regs[rd] <= data_stack[(data_sp - 1'b1) & 5'h0F];
+                        regs[rd] <= data_stack[data_sp[3:0] - 4'd1];
                         data_sp <= data_sp - 1'b1;
                         pc <= pc + 1'b1;
                     end else halted <= 1'b1; // stack underflow protection
