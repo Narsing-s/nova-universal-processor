@@ -31,6 +31,18 @@ module tb_nova32_lockstep;
         .illegal_instruction(illegal_instruction)
     );
 
+    function automatic [31:0] enc_i(input integer imm, input integer src1,
+                                     input integer funct3, input integer dest,
+                                     input logic [6:0] opcode);
+        enc_i = {imm[11:0], src1[4:0], funct3[2:0], dest[4:0], opcode};
+    endfunction
+
+    function automatic [31:0] enc_r(input logic [6:0] funct7,
+                                     input integer src2, input integer src1,
+                                     input logic [2:0] funct3, input integer dest);
+        enc_r = {funct7, src2[4:0], src1[4:0], funct3, dest[4:0], 7'b0110011};
+    endfunction
+
     function automatic [31:0] reference_r(input logic [6:0] funct7,
                                            input logic [2:0] funct3,
                                            input logic [31:0] lhs,
@@ -62,7 +74,7 @@ module tb_nova32_lockstep;
 
         // Initialize eight independent source registers with varied signed values.
         for (idx = 0; idx < 8; idx = idx + 1)
-            imem[idx] = {12'((idx * 317) - 1000), 5'd0, 3'b000, 5'(idx + 1), 7'b0010011};
+            imem[idx] = enc_i((idx * 317) - 1000, 0, 0, idx + 1, 7'b0010011);
 
         // Deterministic pseudo-random stream of valid R-type operations.
         for (idx = 8; idx < 72; idx = idx + 1) begin
@@ -82,7 +94,7 @@ module tb_nova32_lockstep;
             rd = $urandom(seed) % 31 + 1;
             rs1 = $urandom(seed) % 32;
             rs2 = $urandom(seed) % 32;
-            imem[idx] = {f7, rs2, rs1, f3, rd, 7'b0110011};
+            imem[idx] = enc_r(f7, rs2, rs1, f3, rd);
         end
         imem[72] = 32'h0000000B;
 
