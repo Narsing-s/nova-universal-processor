@@ -16,6 +16,7 @@ module nova64_pipeline_cpu (
         OP_JAL=7'b1101111, OP_HALT=7'b0001011;
 
     logic [63:0] pc, ifid_pc, idex_pc, idex_a, idex_b, idex_imm;
+    logic [63:0] regs [0:31];
     logic [31:0] ifid_instr, idex_instr;
     logic ifid_valid, idex_valid, exmem_valid, memwb_valid;
     logic [4:0] idex_rs1, idex_rs2, idex_rd, exmem_rd, memwb_rd;
@@ -24,6 +25,7 @@ module nova64_pipeline_cpu (
     logic [2:0] idex_funct3;
     logic [63:0] exmem_alu, exmem_store_data, memwb_value;
     logic [7:0] exmem_wstrb;
+    logic [2:0] exmem_funct3;
     logic exmem_memwrite, exmem_memread, exmem_regwrite, exmem_memtoreg;
     logic memwb_regwrite;
     logic [63:0] ex_result, ex_operand_a, ex_operand_b, ex_store_data;
@@ -152,8 +154,14 @@ module nova64_pipeline_cpu (
             endcase
         end
         ex_load_value=data_rdata >> (8*exmem_alu[2:0]);
-        case (exmem_wstrb)
-            default: ex_load_value=data_rdata >> (8*exmem_alu[2:0]);
+        case (exmem_funct3)
+            3'b000: ex_load_value={{56{ex_load_value[7]}},ex_load_value[7:0]};
+            3'b001: ex_load_value={{48{ex_load_value[15]}},ex_load_value[15:0]};
+            3'b010: ex_load_value={{32{ex_load_value[31]}},ex_load_value[31:0]};
+            3'b100: ex_load_value={56'd0,ex_load_value[7:0]};
+            3'b101: ex_load_value={48'd0,ex_load_value[15:0]};
+            3'b110: ex_load_value={32'd0,ex_load_value[31:0]};
+            default: ex_load_value=ex_load_value;
         endcase
     end
 
@@ -162,19 +170,21 @@ module nova64_pipeline_cpu (
             pc<=0; ifid_pc<=0; ifid_instr<=32'h0000000B; ifid_valid<=0;
             idex_pc<=0; idex_instr<=32'h0000000B; idex_valid<=0; idex_a<=0; idex_b<=0; idex_imm<=0;
             idex_rs1<=0; idex_rs2<=0; idex_rd<=0; idex_regwrite<=0; idex_memread<=0; idex_memwrite<=0; idex_memtoreg<=0; idex_branch<=0; idex_jal<=0; idex_jalr<=0; idex_alu_imm<=0; idex_funct3<=0;
-            exmem_valid<=0; exmem_alu<=0; exmem_store_data<=0; exmem_rd<=0; exmem_memwrite<=0; exmem_memread<=0; exmem_regwrite<=0; exmem_memtoreg<=0;
+            exmem_valid<=0; exmem_alu<=0; exmem_store_data<=0; exmem_rd<=0; exmem_memwrite<=0; exmem_memread<=0; exmem_regwrite<=0; exmem_memtoreg<=0; exmem_funct3<=0;
             memwb_valid<=0; memwb_value<=0; memwb_rd<=0; memwb_regwrite<=0;
             halted<=0; illegal_instruction<=0;
+            for (integer r=0; r<32; r=r+1) regs[r]<=64'd0;
         end else if (!halted) begin
             if (ex_illegal || (ifid_valid && id_illegal)) begin halted<=1; illegal_instruction<=1; end
             else begin
-                if (memwb_valid && memwb_regwrite && memwb_rd!=0) begin end
+                if (memwb_valid && memwb_regwrite && memwb_rd!=0) regs[memwb_rd]<=memwb_value;
+                regs[0]<=64'd0;
                 if (exmem_valid && exmem_memread) begin
                     case (exmem_alu[2:0])
                         default: begin end
                     endcase
                 end
-                if (exmem_valid && exmem_memread && exmem_alu[2:0]!=0) begin halted<=1; illegal_instruction<=1; end
+                if (exmem_valid && exmem_memread && ((exmem_funct3==1 && exmem_alu[0]) || ((exmem_funct3==2 || exmem_funct3==6) && exmem_alu[1:0]!=0) || (exmem_funct3==3 && exmem_alu[2:0]!=0))) begin halted<=1; illegal_instruction<=1; end
                 if (idex_valid && idex_memwrite && ((idex_funct3==1 && ex_result[0]) || (idex_funct3==2 && ex_result[1:0]!=0) || (idex_funct3==3 && ex_result[2:0]!=0) || idex_funct3>3)) begin halted<=1; illegal_instruction<=1; end
                 if (idex_valid && idex_memread && ((idex_funct3==1 && ex_result[0]) || (idex_funct3==2 && ex_result[1:0]!=0) || (idex_funct3==3 && ex_result[2:0]!=0) || idex_funct3>6)) begin halted<=1; illegal_instruction<=1; end
                 if (!halted) begin
@@ -183,15 +193,15 @@ module nova64_pipeline_cpu (
                     if (flush_id_ex || bubble_id_ex) begin idex_valid<=0; idex_instr<=32'h0000000B; end
                     else begin
                         idex_pc<=ifid_pc; idex_instr<=ifid_instr; idex_valid<=ifid_valid;
-                        idex_a<=(id_rs1==0)?0:((memwb_valid && memwb_regwrite && memwb_rd==id_rs1)?wb_data:64'd0);
-                        idex_b<=(id_rs2==0)?0:((memwb_valid && memwb_regwrite && memwb_rd==id_rs2)?wb_data:64'd0);
+                        idex_a<=(id_rs1==0)?64'd0:((memwb_valid && memwb_regwrite && memwb_rd==id_rs1)?wb_data:regs[id_rs1]);
+                        idex_b<=(id_rs2==0)?64'd0:((memwb_valid && memwb_regwrite && memwb_rd==id_rs2)?wb_data:regs[id_rs2]);
                         idex_imm<=id_imm; idex_rs1<=id_rs1; idex_rs2<=id_rs2; idex_rd<=id_rd;
                         idex_regwrite<=id_regwrite; idex_memread<=id_memread; idex_memwrite<=id_memwrite; idex_memtoreg<=id_memtoreg;
                         idex_branch<=id_branch; idex_jal<=id_jal; idex_jalr<=id_jalr; idex_alu_imm<=id_alu_imm; idex_funct3<=id_funct3;
                     end
                     if (ex_redirect) begin pc<=ex_next_pc; ifid_valid<=0; ifid_instr<=32'h0000000B; end
                     exmem_valid<=idex_valid && !ex_illegal;
-                    exmem_alu<=ex_result; exmem_store_data<=ex_store_data; exmem_rd<=idex_rd;
+                    exmem_alu<=ex_result; exmem_store_data<=ex_store_data << (8*ex_result[2:0]); exmem_rd<=idex_rd; exmem_funct3<=idex_funct3;
                     exmem_memwrite<=idex_memwrite && !ex_illegal; exmem_memread<=idex_memread && !ex_illegal;
                     exmem_regwrite<=idex_regwrite && !ex_illegal; exmem_memtoreg<=idex_memtoreg;
                     memwb_valid<=exmem_valid;
