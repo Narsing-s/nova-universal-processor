@@ -61,8 +61,8 @@ class Nova32ReferenceModelTests(unittest.TestCase):
         word = 0x80FF_7F01
         self.assertEqual(load_value(word, 3, 0), 0xFFFF_FF80)
         self.assertEqual(load_value(word, 3, 4), 0x80)
-        self.assertEqual(load_value(word, 2, 1), 0xFFFF_FF80)
-        self.assertEqual(load_value(word, 2, 5), 0xFF80)
+        self.assertEqual(load_value(word, 2, 1), 0xFFFF_80FF)
+        self.assertEqual(load_value(word, 2, 5), 0x80FF)
         self.assertEqual(load_value(word, 0, 2), word)
         with self.assertRaises(ValueError): load_value(word, 1, 1)
         with self.assertRaises(ValueError): load_value(word, 2, 2)
