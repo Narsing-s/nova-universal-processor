@@ -46,6 +46,26 @@ module tb_nova32_cpu;
         enc_j = {imm[20], imm[10:1], imm[11], imm[19:12], rd[4:0], 7'b1101111};
     endfunction
 
+    // Independent behavioral oracle for the implemented R-type ALU subset.
+    function automatic [31:0] reference_r(input integer f7, input integer f3,
+                                           input logic [31:0] a, input logic [31:0] b);
+        begin
+            case ({f7[6:0], f3[2:0]})
+                {7'b0000000,3'b000}: reference_r = a + b;
+                {7'b0100000,3'b000}: reference_r = a - b;
+                {7'b0000000,3'b001}: reference_r = a << b[4:0];
+                {7'b0000000,3'b010}: reference_r = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0;
+                {7'b0000000,3'b011}: reference_r = (a < b) ? 32'd1 : 32'd0;
+                {7'b0000000,3'b100}: reference_r = a ^ b;
+                {7'b0000000,3'b101}: reference_r = a >> b[4:0];
+                {7'b0100000,3'b101}: reference_r = $signed(a) >>> b[4:0];
+                {7'b0000000,3'b110}: reference_r = a | b;
+                {7'b0000000,3'b111}: reference_r = a & b;
+                default: reference_r = 32'hDEAD_BEEF;
+            endcase
+        end
+    endfunction
+
     task automatic clear_mem;
         begin
             for (integer i = 0; i < 64; i = i + 1) begin
@@ -173,6 +193,36 @@ module tb_nova32_cpu;
         if (!illegal_instruction || dut.regs[1] !== 32'd0)
             $fatal(1, "FAIL: misaligned JAL target must trap without link write");
         $display("PASS: misaligned jump target rejected");
+
+        // Differential-style ALU check: compare the RTL register file against
+        // a separate behavioral oracle for each supported R-type operation.
+        clear_mem();
+        imem[0] = enc_i(-15,0,0,1,7'b0010011); // x1 = 0xfffffff1
+        imem[1] = enc_i(7,0,0,2,7'b0010011);   // x2 = 7
+        imem[2] = enc_r(0,2,1,0,3);            // ADD
+        imem[3] = enc_r(32,2,1,0,4);           // SUB
+        imem[4] = enc_r(0,2,1,1,5);            // SLL
+        imem[5] = enc_r(0,2,1,2,6);            // SLT
+        imem[6] = enc_r(0,2,1,3,7);            // SLTU
+        imem[7] = enc_r(0,2,1,4,8);            // XOR
+        imem[8] = enc_r(0,2,1,5,9);            // SRL
+        imem[9] = enc_r(32,2,1,5,10);          // SRA
+        imem[10] = enc_r(0,2,1,6,11);          // OR
+        imem[11] = enc_r(0,2,1,7,12);          // AND
+        imem[12] = 32'h0000000B;
+        start_cpu(); await_halt();
+        if (dut.regs[3] !== reference_r(0,0,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[4] !== reference_r(32,0,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[5] !== reference_r(0,1,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[6] !== reference_r(0,2,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[7] !== reference_r(0,3,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[8] !== reference_r(0,4,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[9] !== reference_r(0,5,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[10] !== reference_r(32,5,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[11] !== reference_r(0,6,32'hFFFF_FFF1,32'd7) ||
+            dut.regs[12] !== reference_r(0,7,32'hFFFF_FFF1,32'd7))
+            $fatal(1, "FAIL: Nova32 R-type ALU disagrees with behavioral reference");
+        $display("PASS: R-type ALU differential oracle (10 operations)");
 
         $display("Nova32 reference core tests passed");
         $finish;
