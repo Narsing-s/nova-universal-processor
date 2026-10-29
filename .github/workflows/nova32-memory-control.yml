@@ -1,0 +1,24 @@
+name: Nova32 memory and control-flow regression
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  memory-control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+      - name: Compile memory/control-flow regression
+        run: iverilog -g2012 -Wall -s tb_nova32_memory_control -o nova32_memory_control_test rtl32/nova32_cpu.sv tests/tb_nova32_memory_control.sv
+      - name: Run memory/control-flow regression
+        run: vvp nova32_memory_control_test
