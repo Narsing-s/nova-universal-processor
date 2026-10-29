@@ -42,6 +42,9 @@ module tb_nova32_cpu;
                                      input integer f3);
         enc_b = {imm[12], imm[10:5], rs2[4:0], rs1[4:0], f3[2:0], imm[4:1], imm[11], 7'b1100011};
     endfunction
+    function automatic [31:0] enc_j(input integer imm, input integer rd);
+        enc_j = {imm[20], imm[10:1], imm[11], imm[19:12], rd[4:0], 7'b1101111};
+    endfunction
 
     task automatic clear_mem;
         begin
@@ -121,6 +124,55 @@ module tb_nova32_cpu;
         start_cpu(); await_halt();
         if (dmem[0] !== 32'h00000300) $fatal(1, "FAIL: SB lane/strobe behavior");
         $display("PASS: byte store lane handling");
+
+        // JAL must save PC+4 and skip the sequential instruction.
+        clear_mem();
+        imem[0] = enc_j(8,1);                 // jal x1,+8
+        imem[1] = enc_i(99,0,0,2,7'b0010011);// skipped
+        imem[2] = enc_i(9,0,0,3,7'b0010011);// reached at PC=8
+        imem[3] = 32'h0000000B;
+        start_cpu(); await_halt();
+        if (dut.regs[1] !== 32'd4 || dut.regs[2] !== 32'd0 || dut.regs[3] !== 32'd9)
+            $fatal(1, "FAIL: JAL target/link behavior");
+        $display("PASS: JAL target and link address");
+
+        // JALR clears bit 0, then Nova32 enforces 4-byte instruction alignment.
+        clear_mem();
+        imem[0] = enc_i(12,0,0,1,7'b0010011);// x1=12
+        imem[1] = enc_i(0,1,0,5,7'b1100111); // jalr x5,0(x1)
+        imem[2] = enc_i(99,0,0,2,7'b0010011);// skipped
+        imem[3] = enc_i(42,0,0,6,7'b0010011);// target
+        imem[4] = 32'h0000000B;
+        start_cpu(); await_halt();
+        if (dut.regs[5] !== 32'd8 || dut.regs[2] !== 32'd0 || dut.regs[6] !== 32'd42)
+            $fatal(1, "FAIL: JALR target/link behavior");
+        $display("PASS: JALR target and link address");
+
+        // Misaligned halfword load must halt without modifying rd.
+        clear_mem();
+        imem[0] = enc_i(7,0,0,1,7'b0010011);// sentinel
+        imem[1] = enc_i(1,0,1,1,7'b0000011);// lh x1,1(x0): misaligned
+        start_cpu(); await_halt();
+        if (!illegal_instruction || dut.regs[1] !== 32'd7)
+            $fatal(1, "FAIL: misaligned LH must trap without register write");
+        $display("PASS: misaligned halfword load rejected");
+
+        // Misaligned word store must not assert a write strobe or alter memory.
+        clear_mem();
+        imem[0] = enc_i(55,0,0,1,7'b0010011);// x1=55
+        imem[1] = enc_s(2,1,0,2);             // sw x1,2(x0): misaligned
+        start_cpu(); await_halt();
+        if (!illegal_instruction || dmem[0] !== 32'd0)
+            $fatal(1, "FAIL: misaligned SW must trap without modifying memory");
+        $display("PASS: misaligned word store rejected");
+
+        // JAL target with only 2-byte alignment is illegal because Nova32 has no C extension.
+        clear_mem();
+        imem[0] = enc_j(2,1);                 // jal x1,+2
+        start_cpu(); await_halt();
+        if (!illegal_instruction || dut.regs[1] !== 32'd0)
+            $fatal(1, "FAIL: misaligned JAL target must trap without link write");
+        $display("PASS: misaligned jump target rejected");
 
         $display("Nova32 reference core tests passed");
         $finish;
