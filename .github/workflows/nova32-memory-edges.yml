@@ -1,0 +1,24 @@
+name: Nova32 memory edge regression
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  memory-edges:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iverilog
+      - name: Compile Nova32 memory-edge regression
+        run: iverilog -g2012 -Wall -s tb_nova32_memory_edges -o nova32_memory_edges_test rtl32/nova32_cpu.sv tests/tb_nova32_memory_edges.sv
+      - name: Run Nova32 memory-edge regression
+        run: vvp nova32_memory_edges_test
