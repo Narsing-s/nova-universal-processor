@@ -43,7 +43,7 @@ module tb_nova64_pipeline_cpu;
         cycles=0;
         while(!halted && cycles<80) begin @(negedge clk); cycles=cycles+1; end
         #1;
-        if(!halted) $fatal(1,"pipeline timed out");
+        if(!halted) begin $display("TIMEOUT pc=%h ifid=%h valid=%b idex=%h valid=%b exmem_valid=%b memwb_valid=%b exmem_halt=%b memwb_halt=%b",instr_addr,dut.ifid_instr,dut.ifid_valid,dut.idex_instr,dut.idex_valid,dut.exmem_valid,dut.memwb_valid,dut.exmem_halt,dut.memwb_halt); $fatal(1,"pipeline timed out"); end
         if(illegal_instruction) $fatal(1,"pipeline reported illegal instruction");
         if(dut.regs[1]!==64'd5 || dut.regs[2]!==64'd7 || dut.regs[3]!==64'd12)
             $fatal(1,"ALU/forwarding failure x1=%h x2=%h x3=%h",dut.regs[1],dut.regs[2],dut.regs[3]);
