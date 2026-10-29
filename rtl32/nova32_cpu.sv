@@ -75,7 +75,7 @@ module nova32_cpu (
     always_comb begin
         next_pc = pc + 32'd4;
         alu_result = 32'd0;
-        effective_addr = rs1_value + imm_i;
+        effective_addr = rs1_value + ((opcode == OP_STORE) ? imm_s : imm_i);
         load_value = data_rdata;
         reg_write = 1'b0;
         branch_taken = 1'b0;
