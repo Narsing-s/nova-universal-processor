@@ -19,7 +19,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y iverilog
-      - name: Compile testbench
-        run: iverilog -g2012 -Wall -s tb_nova_cpu -o nova_test rtl/nova_cpu.sv tests/tb_nova_cpu.sv
-      - name: Run regression tests
-        run: vvp nova_test
+      - name: Compile 8-bit regression
+        run: iverilog -g2012 -Wall -s tb_nova_cpu -o nova8_test rtl/nova_cpu.sv tests/tb_nova_cpu.sv
+      - name: Run 8-bit regression
+        run: vvp nova8_test
+      - name: Compile 32-bit regression
+        run: iverilog -g2012 -Wall -s tb_nova32_cpu -o nova32_test rtl32/nova32_cpu.sv tests/tb_nova32_cpu.sv
+      - name: Run 32-bit regression
+        run: vvp nova32_test
